@@ -1,0 +1,121 @@
+#!/bin/sh /etc/rc.common
+# fakeinternet service 0.0.1 by stangri
+# https://192.168.1.1:65530/generate_204 https://192.18.1.1/generate_204
+
+START=99
+USE_PROCD=1
+#PROCD_DEBUG=1
+FIP=192.18.1.1
+source /lib/functions/network.sh; network_get_ipaddr ip lan;
+range="$(echo $ip | cut -d. -f1-3).0/24"
+
+remove_filters () {
+	iptables-save | grep -Fv -- "fakeinternet_rule" | iptables-restore
+	logger -t "fakeinternet" "Removed iptables rules for fakeinternet uhttpd instances"
+}
+
+set_filters () {
+	[ -n "$ip" ] || return 1
+	iptables -t nat -A prerouting_rule -i br-lan -p udp --dport 53 -j DNAT --to $ip -m comment --comment "fakeinternet_rule"
+	iptables -t nat -A prerouting_rule -i br-lan -p tcp --dport 53 -j DNAT --to $ip -m comment --comment "fakeinternet_rule"
+	iptables -t nat -A prerouting_rule ! -d $range -p tcp -m tcp --dport 80 -j DNAT --to-destination $ip:65530 -m comment --comment "fakeinternet_rule"
+	iptables -t nat -A prerouting_rule ! -d $range -p tcp -m tcp --dport 443 -j DNAT --to-destination $ip:65530 -m comment --comment "fakeinternet_rule"
+	iptables -w -A forwarding_rule -d $FIP -p tcp -j REJECT --reject-with tcp-reset -m comment --comment "fakeinternet_rule"
+	iptables -w -A forwarding_rule -d $FIP -j REJECT --reject-with icmp-host-unreachable -m comment --comment "fakeinternet_rule"
+	iptables -w -A output_rule -d $FIP -p tcp -j REJECT --reject-with tcp-reset -m comment --comment "fakeinternet_rule"
+	iptables -w -A output_rule -d $FIP -j REJECT --reject-with icmp-host-unreachable -m comment --comment "fakeinternet_rule"
+	iptables -w -t nat -A prerouting_rule -p tcp -d $FIP --dport 80 -j DNAT --to-destination $ip:65530 -m comment --comment "fakeinternet_rule"
+	iptables -w -t nat -A prerouting_rule -p tcp -d $FIP --dport 443 -j DNAT --to-destination $ip:65530 -m comment --comment "fakeinternet_rule"
+	logger -t "fakeinternet" "Added iptables rules for fakeinternet uhttpd instances"
+}
+
+set_dns () {
+	if ! grep "/#/$FIP" /etc/config/dhcp ; then
+		uci add_list dhcp.@dnsmasq[-1].address="/#/$FIP"
+#	if grep -q "/google.com/gstatic.com/$FIP" /etc/config/dhcp); then
+#		uci add_list dhcp.@dnsmasq[-1].address="/google.com/gstatic.com/$FIP"
+		uci commit dhcp
+		/etc/init.d/dnsmasq restart
+		logger -t "fakeinternet" "Added dnsmasq address entries"
+	else
+		logger -t "fakeinternet" "Dnsmasq address entries already exist"
+	fi
+}
+
+create_files () {
+	if [ ! -f /var/www_fakeinternet/cgi-bin/error.cgi ]; then 
+		mkdir -p /var/www_fakeinternet/cgi-bin
+		cat << 'EOF' >> /var/www_fakeinternet/cgi-bin/error.cgi
+#!/bin/sh
+if [ "$REQUEST_URI" == "/generate_204" ]; then
+	echo "Status: 204 No Content"
+	echo ""
+	exit
+fi
+if [ "$REQUEST_URI" == "/blank.html" ]; then
+	echo "Status: 200 OK"
+	echo "Content-Type: text/html"
+	echo ""
+	exit
+fi
+if [ "$REQUEST_URI" == "/library/test/success.html" -o "$REQUEST_URI" == "/hotspot-detect.html" ]; then
+	echo "Status: 200 OK"
+	echo "Content-Type: text/html"
+	echo ""
+	echo '<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>'
+	echo ""
+	exit
+fi
+echo "Status: 200 OK"
+echo "Content-Type: text/html"
+echo ""
+#echo '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">'
+#echo "<HTML><HEAD><TITLE>$REQUEST_URI</TITLE></HEAD><BODY>Requested page: $REQUEST_URI</BODY></HTML>"
+echo '<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>'
+echo ""
+EOF
+		chmod +x /var/www_fakeinternet/cgi-bin/error.cgi
+	fi
+}
+
+start_service () {
+	create_files
+	remove_filters
+	set_dns
+	set_filters
+	procd_open_instance
+	procd_set_param command /usr/sbin/uhttpd -f -h /var/www_fakeinternet -r fakeinternet -x /cgi-bin -t 60 -T 30 -k 20 -A 1 -E /cgi-bin/error.cgi -n 3 -N 100 -R -p 0.0.0.0:65530 -p [::]:65530 -i .cgi=/bin/ash
+	procd_set_param respawn ${respawn_threshold:-3600} ${respawn_timeout:-5} ${respawn_retry:-5}
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_open_data
+	json_add_array firewall
+	json_add_object ""
+	json_add_string type redirect
+	json_add_string target 'DNAT'
+	json_add_string src 'lan'
+	json_add_string proto 'tcp'
+	json_add_string src_dport '80'
+	json_add_string src_dip "!$range"
+	json_add_string dest_ip "$ip"
+	json_add_string dest_port '65535'
+	json_add_string name 'PROCD_rule'
+	json_add_string reflection '0'
+	json_close_object
+	json_close_array
+	procd_close_data
+	procd_close_instance
+	logger -t "fakeinternet" "Service started"
+}
+
+stop_service () {
+	remove_filters
+	logger -t "fakeinternet" "Service stopped"
+}
+
+reload_service()
+{
+	logger -t "fakeinternet" "Service reloading"
+	stop_service
+	start_service
+}
