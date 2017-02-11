@@ -4,10 +4,10 @@
 
 START=99
 USE_PROCD=1
-#PROCD_DEBUG=1
+PROCD_DEBUG=1
 FIP=192.18.1.1
-source /lib/functions/network.sh; network_get_ipaddr ip lan;
-range="$(echo $ip | cut -d. -f1-3).0/24"
+source /lib/functions/network.sh; network_get_subnet range lan;
+# range="$(echo $ip | cut -d. -f1-3).0/24"
 
 remove_filters () {
 	iptables-save | grep -Fv -- "fakeinternet_rule" | iptables-restore
@@ -35,56 +35,19 @@ set_dns () {
 #	if grep -q "/google.com/gstatic.com/$FIP" /etc/config/dhcp); then
 #		uci add_list dhcp.@dnsmasq[-1].address="/google.com/gstatic.com/$FIP"
 		uci commit dhcp
-		/etc/init.d/dnsmasq restart
+		/etc/init.d/dnsmasq restart >/dev/null 2>&1
 		logger -t "fakeinternet" "Added dnsmasq address entries"
 	else
 		logger -t "fakeinternet" "Dnsmasq address entries already exist"
 	fi
 }
 
-create_files () {
-	if [ ! -f /var/www_fakeinternet/cgi-bin/error.cgi ]; then 
-		mkdir -p /var/www_fakeinternet/cgi-bin
-		cat << 'EOF' >> /var/www_fakeinternet/cgi-bin/error.cgi
-#!/bin/sh
-if [ "$REQUEST_URI" == "/generate_204" ]; then
-	echo "Status: 204 No Content"
-	echo ""
-	exit
-fi
-if [ "$REQUEST_URI" == "/blank.html" ]; then
-	echo "Status: 200 OK"
-	echo "Content-Type: text/html"
-	echo ""
-	exit
-fi
-if [ "$REQUEST_URI" == "/library/test/success.html" -o "$REQUEST_URI" == "/hotspot-detect.html" ]; then
-	echo "Status: 200 OK"
-	echo "Content-Type: text/html"
-	echo ""
-	echo '<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>'
-	echo ""
-	exit
-fi
-echo "Status: 200 OK"
-echo "Content-Type: text/html"
-echo ""
-#echo '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">'
-#echo "<HTML><HEAD><TITLE>$REQUEST_URI</TITLE></HEAD><BODY>Requested page: $REQUEST_URI</BODY></HTML>"
-echo '<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>'
-echo ""
-EOF
-		chmod +x /var/www_fakeinternet/cgi-bin/error.cgi
-	fi
-}
-
 start_service () {
-	create_files
 	remove_filters
 	set_dns
 	set_filters
 	procd_open_instance
-	procd_set_param command /usr/sbin/uhttpd -f -h /var/www_fakeinternet -r fakeinternet -x /cgi-bin -t 60 -T 30 -k 20 -A 1 -E /cgi-bin/error.cgi -n 3 -N 100 -R -p 0.0.0.0:65530 -p [::]:65530 -i .cgi=/bin/ash
+	procd_set_param command /usr/sbin/uhttpd -f -h /www_fakeinternet -r fakeinternet -x /cgi-bin -t 60 -T 30 -k 20 -A 1 -E /cgi-bin/error.cgi -n 3 -N 100 -R -p 0.0.0.0:65530 -p [::]:65530 -i .cgi=/bin/ash
 	procd_set_param respawn ${respawn_threshold:-3600} ${respawn_timeout:-5} ${respawn_retry:-5}
 	procd_set_param stdout 1
 	procd_set_param stderr 1

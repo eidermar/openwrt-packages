@@ -40,6 +40,8 @@ endef
 define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/fakeinternet.init $(1)/etc/init.d/fakeinternet
+	$(INSTALL_DIR) $(1)/www_fakeinternet
+	$(INSTALL_BIN) ./files/fakeinternet.cgi $(1)/www_fakeinternet/error.cgi
 endef
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
