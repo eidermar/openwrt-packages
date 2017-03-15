@@ -5,7 +5,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fakeinternet
 PKG_VERSION:=0.0.1
-PKG_RELEASE:=2
+PKG_RELEASE:=5
 PKG_LICENSE:=GPL-3.0+
 PKG_MAINTAINER:=Stan Grishin <stangri@melmac.net>
 
@@ -15,7 +15,7 @@ define Package/$(PKG_NAME)
 	SECTION:=net
 	CATEGORY:=Network
 	DEPENDS:=+uhttpd +dnsmasq
-	TITLE:=Simple VPN Bypass Service
+	TITLE:=Fakeinternet Service
 	PKGARCH:=all
 endef
 
@@ -30,8 +30,8 @@ endef
 
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)/files/
-	$(CP) ./files/vpnbypass.init $(PKG_BUILD_DIR)/files/vpnbypass.init
-	sed -i "s|^\(PKG_VERSION\).*|\1='$(PKG_VERSION)-$(PKG_RELEASE)'|" $(PKG_BUILD_DIR)/files/vpnbypass.init
+	$(CP) ./files/fakeinternet.init $(PKG_BUILD_DIR)/files/fakeinternet.init
+	sed -i "s|^\(PKG_VERSION\).*|\1='$(PKG_VERSION)-$(PKG_RELEASE)'|" $(PKG_BUILD_DIR)/files/fakeinternet.init
 endef
 
 define Build/Configure

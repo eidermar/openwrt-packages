@@ -1,11 +1,14 @@
 #!/bin/sh /etc/rc.common
+PKG_VERSION=
 # fakeinternet service 0.0.1 by stangri
 # https://192.168.1.1:65530/generate_204 https://192.18.1.1/generate_204
 
-START=99
-USE_PROCD=1
-PROCD_DEBUG=1
-FIP=192.18.1.1
+PKG_NAME="${PKG_NAME:-fakeinternet}"; p_name="${PKG_NAME} ${PKG_VERSION}"
+
+export START=99
+export USE_PROCD=1
+export PROCD_DEBUG=1
+export FIP=192.18.1.1 ip range
 source /lib/functions/network.sh; network_get_subnet range lan;
 # range="$(echo $ip | cut -d. -f1-3).0/24"
 
@@ -47,7 +50,7 @@ start_service () {
 	set_dns
 	set_filters
 	procd_open_instance
-	procd_set_param command /usr/sbin/uhttpd -f -h /www_fakeinternet -r fakeinternet -x /cgi-bin -t 60 -T 30 -k 20 -A 1 -E /cgi-bin/error.cgi -n 3 -N 100 -R -p 0.0.0.0:65530 -p [::]:65530 -i .cgi=/bin/ash
+	procd_set_param command /usr/sbin/uhttpd -f -h /www_fakeinternet -r fakeinternet -x /cgi-bin -t 60 -T 30 -k 20 -A 1 -E /cgi-bin/error.cgi -n 3 -N 100 -R -p 0.0.0.0:65530 -p "[::]:65530" -i .cgi=/bin/ash
 	procd_set_param respawn ${respawn_threshold:-3600} ${respawn_timeout:-5} ${respawn_retry:-5}
 	procd_set_param stdout 1
 	procd_set_param stderr 1
@@ -68,17 +71,17 @@ start_service () {
 	json_close_array
 	procd_close_data
 	procd_close_instance
-	logger -t "fakeinternet" "Service started"
+	logger -t "$p_name" "Service started"
 }
 
 stop_service () {
 	remove_filters
-	logger -t "fakeinternet" "Service stopped"
+	logger -t "$p_name" "Service stopped"
 }
 
 reload_service()
 {
-	logger -t "fakeinternet" "Service reloading"
+	logger -t "$p_name" "Service reloading"
 	stop_service
 	start_service
 }
