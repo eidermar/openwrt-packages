@@ -1,7 +1,7 @@
 # OpenVPN Policy-Based Routing
 
 ## Description
-This service allows you to define rules (policies) for routing traffic via WAN or your OpenVPN tunnel(s). Policies can be set based on any combination of local/remote ports, local/remote IPv4 or IPv6 addresses/subnets or domains. This service supersedes the [VPN Bypass](https://github.com/openwrt/packages/blob/master/net/vpnbypass/files/README.md) service, by supporting IPv6 and by allowing you to set explicit rules not just for WAN gateway (bypassing OpenVPN tunnel), but for multiple OpenVPN tunnels as well.
+This service allows you to define rules (policies) for routing traffic via your WAN, or your OpenVPN tunnel(s). Policies can be set based on any combination of local/remote ports, local/remote IPv4 or IPv6 addresses/subnets or domains. This service supersedes the [VPN Bypass](https://github.com/openwrt/packages/blob/master/net/vpnbypass/files/README.md) service, by supporting IPv6 and by allowing you to set explicit rules not just for WAN gateway (bypassing OpenVPN tunnel), but for multiple OpenVPN tunnels as well.
 
 ## Features
 
