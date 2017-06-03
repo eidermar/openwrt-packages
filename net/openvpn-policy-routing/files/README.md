@@ -93,7 +93,7 @@ Default configuration has service disabled (use Web UI to enable/start service o
 - Routes internet traffic from local IPs 192.168.1.70 and 192.168.1.81-192.168.1.86 via WAN gateway.
 
 ## Discussion
-Please head to [LEDE Project Forum](https://forum.lede-project.org/t/openvpn-policy-based-routing-web-ui/1422) or [OpenWrt Forum](https://forum.openwrt.org/viewtopic.php?pid=351193) for discussions of this service.
+Please head to [LEDE Project Forum](https://forum.lede-project.org/t/openvpn-policy-based-routing-web-ui/1422) for discussions on this service.
 
 ## What's New
 4.1.4
